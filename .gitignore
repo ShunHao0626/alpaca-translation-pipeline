@@ -1,0 +1,25 @@
+.DS_Store
+.idea/
+.vscode/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Local datasets and generated artifacts
+*.log
+work/
+outputs/
+data/private/
+data/raw/
+dataset*.json
+translated*.json
+chinese_output*.json
+
+# Keep the deliberately small public samples.
+!data/samples/*.json

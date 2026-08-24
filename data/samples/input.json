@@ -1,0 +1,14 @@
+[
+  {
+    "system": "You are a concise assistant.",
+    "instruction": "解释什么是金属有机框架。",
+    "input": "",
+    "output": "金属有机框架是由金属节点和有机配体组成的多孔材料。"
+  },
+  {
+    "system": "You are a concise assistant.",
+    "instruction": "Summarize the input.",
+    "input": "MOFs are porous crystalline materials.",
+    "output": "MOFs are porous materials."
+  }
+]
