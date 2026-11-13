@@ -1,7 +1,6 @@
 # Alpaca Translation Pipeline
 
-> 中文简介：本项目用于检测 Alpaca 格式数据集中的中文内容，清理翻译候选，
-> 将中文指令与回答翻译成英文，并把结果安全地合并回原始数据集。
+**English** · [简体中文](README_CN.md)
 
 Alpaca Translation Pipeline is a reproducible workflow for identifying,
 cleaning, translating, and reintegrating Chinese text in Alpaca-style instruction
