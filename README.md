@@ -4,7 +4,7 @@
 
 Alpaca Translation Pipeline is a reproducible workflow for identifying,
 cleaning, translating, and reintegrating Chinese text in Alpaca-style instruction
-datasets. It was created from an earlier one-off data-cleaning project and is being
+datasets. It was created from an earlier one-off data-cleaning project and has been
 refactored into a small command-line tool with tests and explicit provenance.
 
 The repository is intended to contain processing code and small examples. The
@@ -17,14 +17,14 @@ The historical pipeline successfully produced a translated working copy. This
 repository consolidates that work into an installable command-line tool with atomic
 JSON writes, resumable translation output, merge-integrity reports, and tests.
 
-| Stage | Historical implementation | Planned release |
-| --- | --- | --- |
-| Chinese-text detection | Available | Consolidated and tested |
-| Candidate cleanup | Available | Alignment-safe cleanup |
-| Translation and retry handling | Available | Resumable execution |
-| Merge into original dataset | Available | Validated merge report |
-| Command-line interface | Available | Five subcommands |
-| Automated tests | Included | No network required |
+| Stage | Current package |
+| --- | --- |
+| Chinese-text detection | `detect`, configurable fields, tested |
+| Candidate cleanup | `clean`, keeps record indices aligned |
+| Translation and retry handling | `translate`, Google backend, bounded retries, checkpoint and resume |
+| Merge into original dataset | `merge`, writes a copy plus a count report |
+| Dataset check | `validate`, reports remaining Chinese fields |
+| Automated tests | Included; no network required |
 
 ## Why this project exists
 
@@ -42,19 +42,20 @@ Alpaca JSON input
 Detect Chinese-containing fields
       |
       v
-Remove empty and non-Chinese candidate fields
+Remove empty and non-Chinese candidate fields (duplicates are kept)
       |
       v
-Translate instruction/output fields with retries
+Translate the detected fields with bounded retries
       |
       v
-Merge translated records into a copy of the original dataset
+Merge translated fields into a copy of the original dataset
       |
       v
-Validate record count, keys, and remaining Chinese text
+Check record structure and report remaining Chinese text
 ```
 
-Every stage writes a new artifact. The original input should remain immutable.
+Every stage writes a new artifact. The tool does not check whether an output path
+equals an input path, so choose output paths that keep the original input intact.
 
 ## Expected input format
 
@@ -71,8 +72,9 @@ The default schema follows the common Alpaca record structure:
 ]
 ```
 
-The cleanup will also support selecting which string fields are translated rather
-than assuming that only `instruction` and `output` are relevant.
+By default the `system`, `instruction`, `input`, and `output` fields are scanned.
+`detect`, `merge`, and `validate` accept `--fields` with a comma-separated list to
+choose other string fields.
 
 ## Historical working snapshot
 
@@ -93,12 +95,14 @@ future input datasets.
 ```text
 alpaca-translation-pipeline/
 ├── src/alpaca_translation/
-│   ├── detect.py
+│   ├── __main__.py
+│   ├── cli.py
 │   ├── clean.py
-│   ├── translate.py
+│   ├── detect.py
+│   ├── io.py
 │   ├── merge.py
-│   ├── validate.py
-│   └── cli.py
+│   ├── translate.py
+│   └── validate.py
 ├── data/
 │   └── samples/
 ├── tests/
@@ -113,7 +117,7 @@ Large inputs, outputs, logs, and checkpoints should remain outside the repositor
 Create an isolated environment and install the package:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/ShunHao0626/alpaca-translation-pipeline.git
 cd alpaca-translation-pipeline
 python3 -m venv .venv
 source .venv/bin/activate
@@ -126,18 +130,24 @@ and the test suite do not require network access or a translation dependency.
 
 ## Command-line interface
 
+The installed console command `alpaca-translate` is equivalent to
+`python -m alpaca_translation`.
+
 ```bash
 # Find records containing Chinese text.
 python -m alpaca_translation detect \
   --input dataset.json \
   --output work/candidates.json
 
-# Remove duplicate paths and unsuitable candidates.
+# Drop empty or non-Chinese candidate fields. Identical text in different
+# records is deliberately kept so that every record receives its translation.
 python -m alpaca_translation clean \
   --input work/candidates.json \
   --output work/candidates-cleaned.json
 
-# Translate selected fields. Progress should be resumable.
+# Translate the candidate fields. Progress is checkpointed every 25 records
+# (--checkpoint-every); rerunning with the same --output resumes, and
+# --overwrite starts again. --max-retries and --delay are also available.
 python -m alpaca_translation translate \
   --input work/candidates-cleaned.json \
   --output work/candidates-translated.json \
@@ -150,20 +160,36 @@ python -m alpaca_translation merge \
   --translations work/candidates-translated.json \
   --output work/dataset-translated.json \
   --report work/merge-report.json
+
+# Check record structure and list any fields that still contain Chinese text.
+python -m alpaca_translation validate \
+  --input work/dataset-translated.json \
+  --report work/validate-report.json
 ```
 
 ## Safety and validation rules
 
-The cleaned implementation should enforce the following rules:
+Implemented in the current package:
 
-- Never overwrite the original dataset by default.
-- Preserve record order and total record count during merging.
-- Preserve fields that were not selected for translation.
-- Save progress so interrupted translation jobs can resume.
-- Retry transient translation failures with bounded exponential backoff.
-- Record failed and unchanged translations without logging secrets.
-- Report remaining Chinese text after the merge.
-- Validate JSON syntax and the expected schema at every stage.
+- JSON is written atomically through a temporary file, so an interrupted write does
+  not leave a truncated output.
+- Merging works on a deep copy, preserves record order and total record count, and
+  rejects out-of-range indices and fields outside the selected field list.
+- Fields that were not selected for translation are left unchanged.
+- Translation progress is checkpointed so interrupted jobs can resume.
+- Each value is retried up to `--max-retries` times (default 3) with exponential
+  backoff of 1 s, 2 s, ...; empty backend responses count as failures.
+- `validate` reports remaining Chinese fields and exits with status 1 when a record
+  is not a JSON object.
+
+Not yet implemented:
+
+- Refusing to overwrite the original dataset (an output path equal to the input path
+  is not detected).
+- Logging failed translations and continuing: a value that still fails after all
+  retries stops the run; already checkpointed records are kept for resumption.
+- Including remaining-Chinese counts in the merge report (run `validate` instead).
+- Checking required keys or a full record schema.
 
 ## Translation quality
 
@@ -193,18 +219,19 @@ a versioned dataset release rather than committed repeatedly to Git history.
 
 ## Known limitations
 
-- The current detector focuses on the basic CJK Unified Ideographs range.
-- English-dominance heuristics can misclassify mixed-language technical text.
-- The historical translator creates network requests sequentially and may be slow.
+- The detector matches CJK Unified Ideographs, Extension A, and Compatibility
+  Ideographs (U+3400–4DBF, U+4E00–9FFF, U+F900–FAFF). A single such character marks
+  the whole field for translation, so mostly English fields with a short Chinese
+  term are translated in full; Japanese kanji are also matched.
+- Translation requests are sent sequentially and may be slow for large datasets.
+- Only the Google backend (via `deep-translator`) is wired into the CLI.
 - Translation-service behavior can change over time.
-- The old scripts use fixed filenames and, in one case, an obsolete Windows path.
-- The historical log is large and should not be committed.
 
 ## Contributing
 
-Contributions are welcome after the first packaged release. Especially useful areas
-include language-detection tests, resumable translation, backend adapters, schema
-validation, terminology preservation, and merge-integrity checks.
+Contributions are welcome. Especially useful areas include language-detection
+tests, backend adapters, failure logging, schema validation, terminology
+preservation, and merge-integrity checks.
 
 Do not submit private data, access credentials, or third-party datasets without
 clear redistribution permission.
