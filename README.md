@@ -2,9 +2,9 @@
 
 **English** · [简体中文](README_CN.md)
 
-**Research problem.** Mixed-language records in instruction datasets make language-specific training and evaluation harder to control. Translating every record also changes content that is already usable.
+This repository provides a five-stage command-line pipeline for Alpaca-style instruction datasets. It detects Chinese-containing fields, cleans candidates, translates with checkpoints, merges results by record index, and validates the output.
 
-I built a five-stage command-line pipeline that detects Chinese-containing fields, cleans candidates, translates with checkpoints, merges results by record index, and validates the output. In the motivating **37,168-record** dataset, this workflow identified **3,928 translation candidates** after cleaning while preserving the full record count. The repository includes the reusable tool, tests, and small examples.
+In a recorded **37,168-record** processing run, the pipeline identified **3,928 translation candidates** after cleaning while preserving the full record count. The repository includes the reusable tool, tests, and small examples.
 
 ## What the pipeline delivers
 
@@ -19,7 +19,7 @@ The installable tool provides atomic JSON writes, resumable translation, merge-i
 | Dataset check | `validate`, reports remaining Chinese fields |
 | Automated tests | Included; no network required |
 
-## Why this project exists
+## Use case
 
 Instruction datasets may contain mixed-language entries even when they are expected
 to be primarily English. Translating the entire dataset wastes requests, changes
@@ -69,9 +69,9 @@ By default the `system`, `instruction`, `input`, and `output` fields are scanned
 `detect`, `merge`, and `validate` accept `--fields` with a comma-separated list to
 choose other string fields.
 
-## Historical working snapshot
+## Processing example
 
-The local research copy used to design this project contains:
+The recorded processing run contains:
 
 | Artifact | Entries |
 | --- | ---: |
