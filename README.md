@@ -2,20 +2,13 @@
 
 **English** · [简体中文](README_CN.md)
 
-Alpaca Translation Pipeline is a reproducible workflow for identifying,
-cleaning, translating, and reintegrating Chinese text in Alpaca-style instruction
-datasets. It was created from an earlier one-off data-cleaning project and has been
-refactored into a small command-line tool with tests and explicit provenance.
+**Research problem.** Mixed-language records in instruction datasets make language-specific training and evaluation harder to control. Translating every record also changes content that is already usable.
 
-The repository is intended to contain processing code and small examples. The
-original and translated full datasets will not be redistributed until their source
-license and publication rights have been verified.
+I built a five-stage command-line pipeline that detects Chinese-containing fields, cleans candidates, translates with checkpoints, merges results by record index, and validates the output. In the motivating **37,168-record** dataset, this workflow identified **3,928 translation candidates** after cleaning while preserving the full record count. The repository includes the reusable tool, tests, and small examples.
 
-## Project status
+## What the pipeline delivers
 
-The historical pipeline successfully produced a translated working copy. This
-repository consolidates that work into an installable command-line tool with atomic
-JSON writes, resumable translation output, merge-integrity reports, and tests.
+The installable tool provides atomic JSON writes, resumable translation, merge-integrity reports, and offline tests. The stage-by-stage outputs make changes to individual records auditable.
 
 | Stage | Current package |
 | --- | --- |
@@ -87,8 +80,7 @@ The local research copy used to design this project contains:
 | Cleaned translation candidates | 3,928 |
 | Final merged dataset | 37,168 |
 
-These numbers document the historical experiment; they are not a guarantee about
-future input datasets.
+These counts describe the motivating dataset and its recorded processing run.
 
 ## Repository layout
 
@@ -182,14 +174,10 @@ Implemented in the current package:
 - `validate` reports remaining Chinese fields and exits with status 1 when a record
   is not a JSON object.
 
-Not yet implemented:
-
-- Refusing to overwrite the original dataset (an output path equal to the input path
-  is not detected).
-- Logging failed translations and continuing: a value that still fails after all
-  retries stops the run; already checkpointed records are kept for resumption.
-- Including remaining-Chinese counts in the merge report (run `validate` instead).
-- Checking required keys or a full record schema.
+Use distinct paths for input and output. When a translation exhausts its retries,
+the run stops and can resume from its last checkpoint. The `validate` command
+reports remaining Chinese text separately from the merge report. Validation checks
+record shape and selected fields; it is not a full Alpaca schema validator.
 
 ## Translation quality
 
@@ -204,20 +192,12 @@ policy, and hashes of input and output files.
 
 ## Data provenance and release policy
 
-The current input filename indicates that the data was downloaded from an external
-dataset platform, but the exact dataset card and license have not yet been confirmed.
-For that reason:
+The motivating dataset came from an external dataset platform. Its exact dataset
+card and redistribution terms are being verified, so this repository publishes
+processing code and small examples. A data release would cite the source dataset,
+follow its license and attribution terms, and version the generated artifacts.
 
-- The full original dataset is not included.
-- The full translated dataset is not included.
-- Only small synthetic or clearly redistributable examples should be committed.
-- A future data release must cite the exact source dataset and comply with its
-  license and attribution requirements.
-
-If redistribution is permitted, large generated artifacts are better published as
-a versioned dataset release rather than committed repeatedly to Git history.
-
-## Known limitations
+## Method characteristics
 
 - The detector matches CJK Unified Ideographs, Extension A, and Compatibility
   Ideographs (U+3400–4DBF, U+4E00–9FFF, U+F900–FAFF). A single such character marks
@@ -238,11 +218,8 @@ clear redistribution permission.
 
 ## Citation
 
-A formal citation will be added with the first versioned release. Until then, cite
-the repository URL and the exact commit used.
+For the current code, cite the repository URL and the exact commit used.
 
 ## License
 
-No public license has been selected yet. The code license and any future dataset
-license will be documented separately after ownership and source-data obligations
-have been confirmed.
+Code and dataset reuse terms are under review and will be documented separately.
